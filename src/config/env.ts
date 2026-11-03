@@ -19,8 +19,11 @@ const envSchema = z.object({
 const parsedEnv = envSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
-  console.error("❌ Invalid environment variables:");
-  console.error(parsedEnv.error.flatten().fieldErrors);
+  const errors = parsedEnv.error.flatten().fieldErrors;
+  console.error("❌ Invalid environment variables:", errors);
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    throw new Error(`Missing required environment variables: ${JSON.stringify(errors)}`);
+  }
   process.exit(1);
 }
 

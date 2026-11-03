@@ -35,7 +35,19 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Root health & info endpoints (handles Vercel rewrite or direct hit)
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "Sundara Furnishings ERP Backend API is live",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use("/api", router);
+
+// Direct /health fallback
+app.use(router);
 
 app.use(notFound);
 app.use(errorHandler);
