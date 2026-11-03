@@ -1,0 +1,261 @@
+// Prisma Client generator
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+// PostgreSQL database
+datasource db {
+  provider = "postgresql"
+}
+
+// Application users & accounts
+model User {
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  email                 String   @unique
+  mobile                String?
+  password              String
+  role                  UserRole @default(ADMIN)
+  roleTitle             String   @default("Administrator")
+  roleId                String   @default("role-admin")
+  status                String   @default("ACTIVE") // ACTIVE | INACTIVE
+  initials              String?
+  avatarBg              String?  @default("bg-emerald-700 text-white")
+  requirePasswordChange Boolean  @default(false)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// User roles
+enum UserRole {
+  ADMIN
+  EMPLOYEE
+}
+
+// User roles & granular module permissions
+model Role {
+  id          String   @id // e.g. "role-admin", "role-sales-mgr" or auto-generated "role-custom-..."
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  status      String   @default("ACTIVE") // ACTIVE | INACTIVE
+  modules     Json     // List of enabled module keys: ["dashboard", "invoice", ...]
+  permissions Json     // Object: moduleKey -> { canView, canCreate, canEdit, canDelete }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Application business settings & company profile
+model Setting {
+  id                 Int      @id @default(autoincrement())
+  companyName        String   @default("Sundara Furnishings LLC")
+  corporateName      String   @default("Sundara Furnishings & Home Decor LLC")
+  ein                String   @default("84-2910394")
+  salesTaxPermit     String   @default("NC-DOR-098231")
+  address            String   @default("4820 South Blvd, Suite 200")
+  city               String   @default("Charlotte")
+  state              String   @default("NC")
+  zipCode            String   @default("28217")
+  phone              String   @default("+1 (704) 555-0199")
+  email              String   @default("billing@sundarafurnishings.com")
+  logoUrl            String?
+  defaultTaxRate     Float    @default(8.25)
+  taxCalculationMode String   @default("EXCLUSIVE")
+  taxLabel           String   @default("Sales Tax")
+  taxSlabs           Json?
+  paymentTerms       Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Product category master
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  code        String    @unique
+  description String?
+  status      String    @default("ACTIVE") // ACTIVE | INACTIVE
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Product catalogue master
+model Product {
+  id            Int       @id @default(autoincrement())
+  name          String
+  sku           String    @unique
+  categoryId    Int?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  uom           String    @default("PCS")
+  costPrice     Float     @default(0)
+  sellingPrice  Float     @default(0)
+  stock         Int       @default(0)
+  reorderLevel  Int       @default(10)
+  taxRate       Float     @default(8.25)
+  status        String    @default("ACTIVE") // ACTIVE | INACTIVE
+  imageUrl      String?
+  salesChannels Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Warehouse facility master
+model Warehouse {
+  id            Int      @id @default(autoincrement())
+  warehouseCode String   @unique
+  name          String
+  address       String
+  city          String
+  state         String
+  postalCode    String
+  country       String   @default("United States")
+  status        String   @default("ACTIVE") // ACTIVE | INACTIVE
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Supplier & Vendor master
+model Supplier {
+  id             Int      @id @default(autoincrement())
+  supplierCode   String   @unique
+  supplierType   String   @default("BUSINESS") // BUSINESS | INDIVIDUAL
+  companyName    String
+  contactPerson  String
+  email          String
+  phone          String
+  alternatePhone String?
+  taxId          String?
+  paymentTerms   String   @default("Net 30")
+  openingBalance Float    @default(0)
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  state          String
+  postalCode     String
+  country        String   @default("United States")
+  notes          String?
+  status         String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Purchase order & procurement
+model Purchase {
+  id                    Int       @id @default(autoincrement())
+  purchaseNumber        String    @unique
+  supplierId            Int
+  supplierName          String
+  warehouseId           Int
+  warehouseName         String
+  purchaseDate          DateTime  @default(now())
+  expectedDate          DateTime?
+  supplierInvoiceNumber String?
+  containerNumber       String?
+  status                String    @default("DRAFT") // DRAFT | ORDERED | RECEIVED | CANCELLED
+  items                 Json      // Array of PurchaseItem
+  subtotal              Float     @default(0)
+  discount              Float     @default(0)
+  tax                   Float     @default(0)
+  additionalCharges     Float     @default(0)
+  grandTotal            Float     @default(0)
+  amountPaid            Float     @default(0)
+  balanceDue            Float     @default(0)
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// Sales invoice & billing
+model Invoice {
+  id                 Int       @id @default(autoincrement())
+  invoiceNumber      String    @unique
+  invoiceDate        DateTime  @default(now())
+  dueDate            DateTime?
+  salesChannel       String    @default("Website")
+  externalOrderId    String?   // Optional online platform Order ID / Ref #
+  buyerName          String
+  buyerEmail         String?
+  buyerPhone         String?
+  billingAddress     String?
+  shippingAddress    String?
+  warehouseId        Int?
+  warehouseName      String?
+  items              Json      // Array of InvoiceLineItem
+  subtotal           Float     @default(0)
+  discountTotal      Float     @default(0)
+  taxTotal           Float     @default(0)
+  shippingCharges    Float     @default(0)
+  additionalCharges  Float     @default(0)
+  grandTotal         Float     @default(0)
+  amountPaid         Float     @default(0)
+  balanceDue         Float     @default(0)
+  paymentStatus      String    @default("PENDING") // PAID | PARTIALLY_PAID | PENDING | OVERDUE
+  paymentMethod      String?   // CASH | BANK_TRANSFER | CREDIT_CARD | CHECK
+  status             String    @default("ISSUED") // DRAFT | ISSUED | CANCELLED
+  notes              String?
+  termsAndConditions String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+// Sales channels & multi-channel marketplaces
+model SalesChannel {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  code        String   @unique
+  type        String   @default("MARKETPLACE") // MARKETPLACE | OWN_WEBSITE | RETAIL
+  website     String?
+  description String?
+  status      String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Real-time stock movements & inventory ledger
+model StockLedger {
+  id                Int      @id @default(autoincrement())
+  date              DateTime @default(now())
+  productId         Int
+  sku               String
+  productName       String
+  warehouseId       Int
+  warehouseName     String
+  movementType      String   // PURCHASE_RECEIPT | SALES_INVOICE | SALES_RETURN | PURCHASE_CORRECTION | INVENTORY_ADJUSTMENT
+  referenceDocument String?  // e.g. PO-2026-001, INV-2026-001, ADJ-2026-001
+  quantityChange    Int      // e.g. +25, -2
+  previousBalance   Int      @default(0)
+  newBalance        Int      @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+}
+
+// Landed cost & overseas container imports
+model ImportShipment {
+  id                    Int       @id @default(autoincrement())
+  importNumber          String    @unique
+  supplierId            Int?
+  supplierName          String?
+  supplierInvoiceNumber String?
+  purchaseId            Int?
+  purchaseNumber        String?
+  shipmentReference     String?   // e.g. BOL-MSC-774129
+  importDate            DateTime  @default(now())
+  warehouseId           Int       @default(1)
+  warehouseName         String    @default("Central Distribution Center (CDC)")
+  status                String    @default("DRAFT") // DRAFT | PROCESSING | REVIEW_REQUIRED | COMPLETED | CANCELLED
+  items                 Json      // Array of ImportItem
+  expenseHeads          Json      // Array of ImportExpenseHead
+  totalProductCost      Float     @default(0)
+  totalAdditionalCosts  Float     @default(0)
+  totalLandedCost       Float     @default(0)
+  documentName          String?
+  documentExtracted     Boolean   @default(false)
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
