@@ -166,20 +166,63 @@ export const getDashboardInsights = async (filters?: {
     })
   );
 
-  // 8. Monthly trends (last 6 months baseline + live database aggregates)
-  const monthlyTrends = [
-    { month: "May", revenue: 31200, cost: 14100, profit: 17100 },
-    { month: "Jun", revenue: 37500, cost: 16800, profit: 20700 },
-    { month: "Jul", revenue: 42100, cost: 18900, profit: 23200 },
-    { month: "Aug", revenue: 36400, cost: 16200, profit: 20200 },
-    { month: "Sep", revenue: 44800, cost: 19900, profit: 24900 },
-    {
-      month: "Current",
-      revenue: Math.round(totalSales * 100) / 100,
-      cost: Math.round(totalCostOfGoodsSold * 100) / 100,
-      profit: Math.round(grossProfit * 100) / 100,
-    },
+  // 8. Monthly trends: dynamically aggregate past 6 months from actual database invoices & purchases
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
+  const now = new Date();
+
+  const monthBuckets: { month: string; year: number; monthIdx: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthBuckets.push({
+      month: monthNames[d.getMonth()],
+      year: d.getFullYear(),
+      monthIdx: d.getMonth(),
+    });
+  }
+
+  const monthlyTrends = monthBuckets.map(({ month, year, monthIdx }) => {
+    // Sum real invoices belonging to this calendar month
+    const monthInvoices = invoices.filter((inv) => {
+      const d = new Date(inv.invoiceDate || inv.createdAt);
+      return d.getFullYear() === year && d.getMonth() === monthIdx;
+    });
+
+    // Sum real purchases belonging to this calendar month
+    const monthPurchases = purchases.filter((po) => {
+      const d = new Date(po.purchaseDate || po.createdAt);
+      return d.getFullYear() === year && d.getMonth() === monthIdx;
+    });
+
+    const revenue = monthInvoices.reduce(
+      (sum, inv) => sum + (Number(inv.grandTotal) || 0),
+      0
+    );
+    const cost = monthPurchases.reduce(
+      (sum, po) => sum + (Number(po.grandTotal) || 0),
+      0
+    );
+    const profit = Math.max(0, revenue - cost);
+
+    return {
+      month,
+      revenue: Math.round(revenue * 100) / 100,
+      cost: Math.round(cost * 100) / 100,
+      profit: Math.round(profit * 100) / 100,
+    };
+  });
 
   return {
     kpi: {
