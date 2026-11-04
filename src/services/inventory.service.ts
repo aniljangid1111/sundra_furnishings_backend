@@ -9,77 +9,6 @@ import { z } from "zod";
 
 type AdjustStockInput = z.infer<typeof adjustStockSchema>;
 
-const initialLedgerSeed = [
-  {
-    date: new Date("2026-09-24T15:30:00Z"),
-    productId: 5,
-    sku: "TBL-002",
-    productName: "Walnut Console Table",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-001",
-    quantityChange: 10,
-    previousBalance: 0,
-    newBalance: 10,
-    notes: "Supplier Appalachian Hardwood Mills shipment check-in",
-  },
-  {
-    date: new Date("2026-09-24T15:30:00Z"),
-    productId: 3,
-    sku: "TBL-001",
-    productName: "Oak Side Table",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-001",
-    quantityChange: 15,
-    previousBalance: 0,
-    newBalance: 15,
-    notes: "Supplier Appalachian Hardwood Mills shipment check-in",
-  },
-  {
-    date: new Date("2026-10-02T11:45:00Z"),
-    productId: 2,
-    sku: "CHR-001",
-    productName: "Luna Accent Chair",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-003",
-    quantityChange: 20,
-    previousBalance: 0,
-    newBalance: 20,
-    notes: "Vendor procurement check-in at dock",
-  },
-  {
-    date: new Date("2026-10-14T10:15:00Z"),
-    productId: 1,
-    sku: "BED-001",
-    productName: "Cotton Bedsheet Set - Queen",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "SALES_INVOICE",
-    referenceDocument: "INV-2026-001",
-    quantityChange: -2,
-    previousBalance: 44,
-    newBalance: 42,
-    notes: "Customer sales order fulfillment",
-  },
-];
-
-// Helper to seed initial stock ledger if empty
-const seedInitialStockLedger = async () => {
-  const count = await prisma.stockLedger.count();
-  if (count === 0) {
-    for (const entry of initialLedgerSeed) {
-      await prisma.stockLedger.create({
-        data: entry,
-      });
-    }
-  }
-};
-
 /**
  * Retrieves live inventory breakdown across all products with pagination and KPI summary
  */
@@ -223,8 +152,6 @@ export const getStockLedger = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialStockLedger();
-
   const whereClause: any = {};
   if (filters?.productId) {
     whereClause.productId = filters.productId;

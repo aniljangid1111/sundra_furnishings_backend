@@ -13,114 +13,6 @@ import { z } from "zod";
 type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 
-const initialInvoices = [
-  {
-    invoiceNumber: "INV-2026-001",
-    invoiceDate: new Date("2026-10-14T11:00:00Z"),
-    dueDate: new Date("2026-11-14T11:00:00Z"),
-    salesChannel: "Website",
-    externalOrderId: "ORD-99120",
-    buyerName: "Eleanor Vance",
-    buyerEmail: "eleanor.vance@example.com",
-    buyerPhone: "+1 (555) 234-5678",
-    billingAddress: "742 Evergreen Terrace, Springfield, OR 97477",
-    shippingAddress: "742 Evergreen Terrace, Springfield, OR 97477",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    items: [
-      {
-        id: 1,
-        productId: 1,
-        sku: "BED-001",
-        productName: "Cotton Bedsheet Set - Queen",
-        quantity: 2,
-        unitPrice: 180,
-        discount: 20,
-        taxRate: 8.25,
-        lineTotal: 340,
-      },
-      {
-        id: 2,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 1,
-        unitPrice: 280,
-        discount: 0,
-        taxRate: 8.25,
-        lineTotal: 280,
-      },
-    ],
-    subtotal: 620,
-    discountTotal: 20,
-    taxTotal: 49.5,
-    shippingCharges: 25,
-    additionalCharges: 0,
-    grandTotal: 674.5,
-    amountPaid: 674.5,
-    balanceDue: 0,
-    paymentStatus: "PAID",
-    paymentMethod: "CREDIT_CARD",
-    status: "ISSUED",
-    notes: "Front porch delivery requested with signature requirement.",
-    termsAndConditions: "Standard 30-day return policy. Retain receipt for warranty claims.",
-  },
-  {
-    invoiceNumber: "INV-2026-002",
-    invoiceDate: new Date("2026-10-28T14:30:00Z"),
-    dueDate: new Date("2026-11-28T14:30:00Z"),
-    salesChannel: "B2B Wholesale",
-    externalOrderId: "PO-CLIENT-411",
-    buyerName: "Theodore Finch",
-    buyerEmail: "theodore@finch-interiors.com",
-    buyerPhone: "+1 (555) 876-5432",
-    billingAddress: "450 Lexington Ave, Suite 1200, New York, NY 10017",
-    shippingAddress: "450 Lexington Ave, Suite 1200, New York, NY 10017",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    items: [
-      {
-        id: 3,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 2,
-        unitPrice: 650,
-        discount: 50,
-        taxRate: 8.25,
-        lineTotal: 1250,
-      },
-    ],
-    subtotal: 1250,
-    discountTotal: 50,
-    taxTotal: 99.0,
-    shippingCharges: 85,
-    additionalCharges: 0,
-    grandTotal: 1384.0,
-    amountPaid: 500.0,
-    balanceDue: 884.0,
-    paymentStatus: "PARTIALLY_PAID",
-    paymentMethod: "BANK_TRANSFER",
-    status: "ISSUED",
-    notes: "Commercial delivery between 9 AM and 4 PM with freight elevator access.",
-    termsAndConditions: "Net 30 terms. Late fees of 1.5% apply after 30 days.",
-  },
-];
-
-/**
- * Automatically seeds initial invoices if the table is currently empty
- */
-const seedInitialInvoices = async () => {
-  const count = await prisma.invoice.count();
-  if (count === 0) {
-    for (const inv of initialInvoices) {
-      await prisma.invoice.create({
-        data: inv,
-      });
-    }
-  }
-};
-
 /**
  * Generates the next sequential invoice number (e.g. INV-2026-003)
  */
@@ -165,8 +57,6 @@ export const getAllInvoices = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialInvoices();
-
   const whereClause: any = {};
 
   if (filters?.status && filters.status !== "ALL") {
@@ -273,8 +163,6 @@ export const getAllInvoices = async (
  * Retrieves a single invoice by ID
  */
 export const getInvoiceById = async (id: number) => {
-  await seedInitialInvoices();
-
   const invoice = await prisma.invoice.findUnique({
     where: { id },
   });
@@ -632,7 +520,15 @@ export const updateInvoice = async (id: number, data: UpdateInvoiceInput) => {
  * Deletes an invoice by ID
  */
 export const deleteInvoice = async (id: number) => {
-  await getInvoiceById(id);
+  const existing = await prisma.invoice.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    const error: any = new Error("Invoice not found");
+    error.statusCode = 404;
+    throw error;
+  }
 
   await prisma.invoice.delete({
     where: { id },

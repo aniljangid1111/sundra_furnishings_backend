@@ -4,14 +4,6 @@ import {
   buildPaginationMetadata,
 } from "../utils/pagination";
 
-const initialCategories = [
-  { name: "Furniture", code: "FUR", description: "Furniture products including chairs, tables and consoles." },
-  { name: "Bedding", code: "BED", description: "Bedsheets, bedding sets and related products." },
-  { name: "Home Decor", code: "DEC", description: "Decorative products and accessories for the home." },
-  { name: "Lighting", code: "LGT", description: "Floor lamps, table lamps and other lighting products." },
-  { name: "Rugs", code: "RUG", description: "Area rugs and decorative floor coverings." },
-];
-
 // Fetch all categories with search, status filters, pagination, and KPI summary
 export const getAllCategories = async (
   filters?: {
@@ -20,14 +12,6 @@ export const getAllCategories = async (
   },
   pagination?: PaginationParams
 ) => {
-  const existingCount = await prisma.category.count();
-  if (existingCount === 0) {
-    await prisma.category.createMany({
-      data: initialCategories,
-      skipDuplicates: true,
-    });
-  }
-
   const whereClause: any = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;

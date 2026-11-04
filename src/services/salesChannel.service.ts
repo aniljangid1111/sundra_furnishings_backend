@@ -12,53 +12,6 @@ import { z } from "zod";
 type CreateSalesChannelInput = z.infer<typeof createSalesChannelSchema>;
 type UpdateSalesChannelInput = z.infer<typeof updateSalesChannelSchema>;
 
-const initialChannels = [
-  {
-    name: "Website",
-    code: "WEB",
-    type: "OWN_WEBSITE",
-    website: "https://sundarafurnishings.com",
-    description: "Official Sundara Furnishings online store.",
-    status: "ACTIVE",
-  },
-  {
-    name: "Amazon",
-    code: "AMZ",
-    type: "MARKETPLACE",
-    website: "https://www.amazon.com",
-    description: "Product listings and sales through Amazon marketplace.",
-    status: "ACTIVE",
-  },
-  {
-    name: "Wayfair",
-    code: "WAY",
-    type: "MARKETPLACE",
-    website: "https://www.wayfair.com",
-    description: "Furniture and home decor retail marketplace.",
-    status: "ACTIVE",
-  },
-  {
-    name: "Direct Shop / Retail Showroom",
-    code: "POS",
-    type: "RETAIL",
-    website: "",
-    description: "Direct walk-in customer purchases through physical showroom.",
-    status: "ACTIVE",
-  },
-];
-
-// Helper to seed initial sales channels if table is empty
-const seedInitialSalesChannels = async () => {
-  const count = await prisma.salesChannel.count();
-  if (count === 0) {
-    for (const c of initialChannels) {
-      await prisma.salesChannel.create({
-        data: c,
-      });
-    }
-  }
-};
-
 /**
  * Retrieves all sales channels with filters, pagination, and KPI summary
  */
@@ -70,8 +23,6 @@ export const getAllSalesChannels = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialSalesChannels();
-
   const whereClause: any = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -158,8 +109,6 @@ export const getAllSalesChannels = async (
  * Retrieves a single sales channel by ID
  */
 export const getSalesChannelById = async (id: number) => {
-  await seedInitialSalesChannels();
-
   const channel = await prisma.salesChannel.findUnique({
     where: { id },
   });

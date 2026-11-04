@@ -65,89 +65,6 @@ export const calculateLandedCosts = (
   });
 };
 
-const initialImportsSeed = [
-  {
-    importNumber: "IMP-2026-001",
-    supplierId: 2,
-    supplierName: "Royal Teak Exports Ltd",
-    supplierInvoiceNumber: "RTE-INV-99412",
-    purchaseId: 1,
-    purchaseNumber: "PO-2026-001",
-    shipmentReference: "BOL-MSC-774129",
-    importDate: new Date("2026-10-12T10:00:00Z"),
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    status: "COMPLETED",
-    items: [
-      {
-        id: 1,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 10,
-        purchaseUnitCost: 450,
-        purchaseTotalCost: 4500,
-        allocatedExpense: 375,
-        totalLandedCost: 4875,
-        landedUnitCost: 487.5,
-      },
-      {
-        id: 2,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 15,
-        purchaseUnitCost: 170,
-        purchaseTotalCost: 2550,
-        allocatedExpense: 212.5,
-        totalLandedCost: 2762.5,
-        landedUnitCost: 184.17,
-      },
-    ],
-    expenseHeads: [
-      {
-        id: 1,
-        type: "FREIGHT",
-        description: "Ocean Freight - MSC Flaminia Container 40ft",
-        amount: 350,
-        allocationMethod: "BY_VALUE",
-      },
-      {
-        id: 2,
-        type: "CUSTOMS",
-        description: "US Customs & Border Protection Harbor Tariff",
-        amount: 150,
-        allocationMethod: "BY_VALUE",
-      },
-      {
-        id: 3,
-        type: "PORT_HANDLING",
-        description: "Port Newark Terminal Drayage and Offload",
-        amount: 87.5,
-        allocationMethod: "BY_VALUE",
-      },
-    ],
-    totalProductCost: 7050,
-    totalAdditionalCosts: 587.5,
-    totalLandedCost: 7637.5,
-    documentName: "Customs_Bill_of_Lading_MSC774129.pdf",
-    documentExtracted: true,
-    notes: "Direct container clearance through Port Newark.",
-  },
-];
-
-// Helper to seed initial import shipment if table is empty
-const seedInitialImports = async () => {
-  const count = await prisma.importShipment.count();
-  if (count === 0) {
-    for (const imp of initialImportsSeed) {
-      await prisma.importShipment.create({
-        data: imp,
-      });
-    }
-  }
-};
-
 /**
  * Generate next sequential Import Number (e.g. IMP-2026-002)
  */
@@ -191,8 +108,6 @@ export const getAllImports = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialImports();
-
   const whereClause: any = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -290,8 +205,6 @@ export const getAllImports = async (
  * Retrieve a single import shipment by ID
  */
 export const getImportById = async (id: number) => {
-  await seedInitialImports();
-
   const shipment = await prisma.importShipment.findUnique({
     where: { id },
   });
@@ -458,7 +371,15 @@ export const updateImportShipment = async (id: number, data: UpdateImportInput) 
  * Delete an import shipment
  */
 export const deleteImportShipment = async (id: number) => {
-  await getImportById(id);
+  const existing = await prisma.importShipment.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    const error: any = new Error("Import shipment not found");
+    error.statusCode = 404;
+    throw error;
+  }
 
   await prisma.importShipment.delete({
     where: { id },

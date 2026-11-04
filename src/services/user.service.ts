@@ -22,99 +22,6 @@ const computeInitials = (name: string): string => {
   return (parts[0] ? parts[0].slice(0, 2) : "US").toUpperCase();
 };
 
-const initialUsersSeed = [
-  {
-    name: "Aarav Rathi",
-    mobile: "+1 (704) 555-0112",
-    email: "aarav@sundarafurnishings.com",
-    role: "ADMIN" as const,
-    roleTitle: "Administrator",
-    roleId: "role-admin",
-    status: "ACTIVE",
-    initials: "AR",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123",
-  },
-  {
-    name: "Maya Whitfield",
-    mobile: "+1 (704) 555-0145",
-    email: "maya@sundarafurnishings.com",
-    role: "EMPLOYEE" as const,
-    roleTitle: "Sales Manager",
-    roleId: "role-sales-mgr",
-    status: "ACTIVE",
-    initials: "MW",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123",
-  },
-  {
-    name: "Daniel Ochoa",
-    mobile: "+1 (704) 555-0178",
-    email: "daniel@sundarafurnishings.com",
-    role: "EMPLOYEE" as const,
-    roleTitle: "Purchase Executive",
-    roleId: "role-purchase-exec",
-    status: "ACTIVE",
-    initials: "DO",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123",
-  },
-  {
-    name: "Hannah Brooks",
-    mobile: "+1 (704) 555-0198",
-    email: "hannah@sundarafurnishings.com",
-    role: "EMPLOYEE" as const,
-    roleTitle: "Store Keeper",
-    roleId: "role-store-keeper",
-    status: "ACTIVE",
-    initials: "HB",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123",
-  },
-  {
-    name: "Marcus Chen",
-    mobile: "+1 (704) 555-0133",
-    email: "marcus@sundarafurnishings.com",
-    role: "EMPLOYEE" as const,
-    roleTitle: "Accountant",
-    roleId: "role-accountant",
-    status: "INACTIVE",
-    initials: "MC",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123",
-  },
-];
-
-// Helper to seed initial users if user table has only 0 or 1 user
-const seedInitialUsers = async () => {
-  const count = await prisma.user.count();
-  if (count <= 1) {
-    for (const u of initialUsersSeed) {
-      const exists = await prisma.user.findUnique({
-        where: { email: u.email },
-      });
-      if (!exists) {
-        const hashedPassword = await hashPassword(u.password);
-        await prisma.user.create({
-          data: {
-            name: u.name,
-            email: u.email,
-            mobile: u.mobile,
-            password: hashedPassword,
-            role: u.role,
-            roleTitle: u.roleTitle,
-            roleId: u.roleId,
-            status: u.status,
-            initials: u.initials,
-            avatarBg: u.avatarBg,
-            isActive: u.status === "ACTIVE",
-          },
-        });
-      }
-    }
-  }
-};
-
 /**
  * Retrieves all users with pagination, filters, and KPI summary
  */
@@ -126,8 +33,6 @@ export const getAllUsers = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialUsers();
-
   const whereClause: any = {};
   if (filters?.roleId) {
     whereClause.roleId = filters.roleId;
@@ -215,8 +120,6 @@ export const getAllUsers = async (
  * Retrieves a single user by ID
  */
 export const getUserById = async (id: number) => {
-  await seedInitialUsers();
-
   const user = await prisma.user.findUnique({
     where: { id },
     select: {

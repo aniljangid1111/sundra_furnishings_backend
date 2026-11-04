@@ -5,101 +5,6 @@ import {
 } from "../utils/pagination";
 import { parseDateRangeFilter } from "../utils/dateFilter";
 
-const initialPurchases = [
-  {
-    purchaseNumber: "PO-2026-001",
-    supplierId: 1,
-    supplierName: "Appalachian Hardwood Mills",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    purchaseDate: new Date("2026-09-10T10:00:00Z"),
-    expectedDate: new Date("2026-09-24T15:30:00Z"),
-    supplierInvoiceNumber: "INV-AHM-9821",
-    containerNumber: "MSCU-829104-5",
-    status: "RECEIVED",
-    items: [
-      {
-        id: 101,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 10,
-        unitCost: 450,
-        discount: 0,
-        taxRate: 0,
-        lineTotal: 4500,
-        receivedQuantity: 10,
-      },
-      {
-        id: 102,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 15,
-        unitCost: 170,
-        discount: 50,
-        taxRate: 0,
-        lineTotal: 2500,
-        receivedQuantity: 15,
-      },
-    ],
-    subtotal: 7000,
-    discount: 50,
-    tax: 0,
-    additionalCharges: 350,
-    grandTotal: 7300,
-    amountPaid: 7300,
-    balanceDue: 0,
-    notes: "Direct flatbed freight shipment from Asheville lumber yard.",
-  },
-  {
-    purchaseNumber: "PO-2026-002",
-    supplierId: 2,
-    supplierName: "Heritage Loom & Textile Co.",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    purchaseDate: new Date("2026-10-05T09:15:00Z"),
-    expectedDate: new Date("2026-11-02T12:00:00Z"),
-    supplierInvoiceNumber: "HLT-44021",
-    containerNumber: "MAEU-551029-1",
-    status: "ORDERED",
-    items: [
-      {
-        id: 201,
-        productId: 1,
-        sku: "BED-001",
-        productName: "Cotton Bedsheet Set - Queen",
-        quantity: 30,
-        unitCost: 120,
-        discount: 0,
-        taxRate: 0,
-        lineTotal: 3600,
-        receivedQuantity: 0,
-      },
-    ],
-    subtotal: 3600,
-    discount: 0,
-    tax: 0,
-    additionalCharges: 180,
-    grandTotal: 3780,
-    amountPaid: 1500,
-    balanceDue: 2280,
-    notes: "Container arrival expected at Port Newark with rail transfer to NC.",
-  },
-];
-
-// Helper to auto-seed initial purchases
-const seedInitialPurchases = async () => {
-  const count = await prisma.purchase.count();
-  if (count === 0) {
-    for (const po of initialPurchases) {
-      await prisma.purchase.create({
-        data: po,
-      });
-    }
-  }
-};
-
 // Generate next PO Number sequentially (e.g. PO-2026-003)
 export const generateNextPoNumber = async (): Promise<string> => {
   const currentYear = new Date().getFullYear();
@@ -140,8 +45,6 @@ export const getAllPurchases = async (
   },
   pagination?: PaginationParams
 ) => {
-  await seedInitialPurchases();
-
   const whereClause: any = {};
 
   if (filters?.status && filters.status !== "ALL") {
@@ -231,8 +134,6 @@ export const getAllPurchases = async (
 
 // Retrieve single purchase by ID
 export const getPurchaseById = async (id: number) => {
-  await seedInitialPurchases();
-
   const purchase = await prisma.purchase.findUnique({
     where: { id },
   });
@@ -520,7 +421,15 @@ export const updatePurchase = async (id: number, data: any) => {
 
 // Delete a purchase order
 export const deletePurchase = async (id: number) => {
-  await getPurchaseById(id);
+  const existing = await prisma.purchase.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    const error: any = new Error("Purchase order not found");
+    error.statusCode = 404;
+    throw error;
+  }
 
   await prisma.purchase.delete({
     where: { id },

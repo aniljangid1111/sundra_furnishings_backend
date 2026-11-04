@@ -733,21 +733,7 @@ var updateCategorySchema = z4.object({
 });
 
 // src/services/category.service.ts
-var initialCategories = [
-  { name: "Furniture", code: "FUR", description: "Furniture products including chairs, tables and consoles." },
-  { name: "Bedding", code: "BED", description: "Bedsheets, bedding sets and related products." },
-  { name: "Home Decor", code: "DEC", description: "Decorative products and accessories for the home." },
-  { name: "Lighting", code: "LGT", description: "Floor lamps, table lamps and other lighting products." },
-  { name: "Rugs", code: "RUG", description: "Area rugs and decorative floor coverings." }
-];
 var getAllCategories = async (filters, pagination) => {
-  const existingCount = await prisma.category.count();
-  if (existingCount === 0) {
-    await prisma.category.createMany({
-      data: initialCategories,
-      skipDuplicates: true
-    });
-  }
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -1367,49 +1353,7 @@ var updateWarehouseSchema = z6.object({
 });
 
 // src/services/warehouse.service.ts
-var initialWarehouses = [
-  {
-    warehouseCode: "WH-01",
-    name: "Central Distribution Center (CDC)",
-    address: "4800 E 48th Ave, Bay 6",
-    city: "Denver",
-    state: "CO",
-    postalCode: "80216",
-    country: "United States",
-    status: "ACTIVE",
-    notes: "Main cross-docking and inventory storage hub for solid wood dining and living furniture."
-  },
-  {
-    warehouseCode: "WH-02",
-    name: "East Coast Logistics Hub",
-    address: "100 Northern Ave, Berth 4",
-    city: "Boston",
-    state: "MA",
-    postalCode: "02210",
-    country: "United States",
-    status: "ACTIVE",
-    notes: "Serving Northeast residential orders, designer direct shipments, and retail replenishment."
-  },
-  {
-    warehouseCode: "WH-03",
-    name: "West Coast Fulfillment Center",
-    address: "3200 Airport Way S, Dock 12",
-    city: "Seattle",
-    state: "WA",
-    postalCode: "98134",
-    country: "United States",
-    status: "ACTIVE",
-    notes: "Specialized in lighting fixtures, textiles, bedding stock, and imported decor accessories."
-  }
-];
 var getAllWarehouses = async (filters, pagination) => {
-  const existingCount = await prisma.warehouse.count();
-  if (existingCount === 0) {
-    await prisma.warehouse.createMany({
-      data: initialWarehouses,
-      skipDuplicates: true
-    });
-  }
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -1649,116 +1593,7 @@ var updateSupplierSchema = z7.object({
 });
 
 // src/services/supplier.service.ts
-var initialSuppliers = [
-  {
-    supplierCode: "SUP-001",
-    supplierType: "BUSINESS",
-    companyName: "Appalachian Hardwood Mills",
-    contactPerson: "Robert Sterling",
-    email: "orders@appalachianhardwoods.com",
-    phone: "(828) 555-0182",
-    alternatePhone: "(828) 555-0183",
-    taxId: "56-8941235",
-    paymentTerms: "Net 30",
-    openingBalance: 0,
-    addressLine1: "142 Lumber Mill Rd",
-    addressLine2: "Bldg 4",
-    city: "Asheville",
-    state: "NC",
-    postalCode: "28801",
-    country: "United States",
-    notes: "Primary supplier of kiln-dried solid walnut and white oak slabs for dining tables.",
-    status: "ACTIVE"
-  },
-  {
-    supplierCode: "SUP-002",
-    supplierType: "BUSINESS",
-    companyName: "Heritage Loom & Textile Co.",
-    contactPerson: "Margaret Vance",
-    email: "m.vance@heritagetextiles.com",
-    phone: "(864) 555-0144",
-    alternatePhone: "",
-    taxId: "57-1239874",
-    paymentTerms: "Net 30",
-    openingBalance: 0,
-    addressLine1: "500 Weaver Way",
-    addressLine2: "",
-    city: "Greenville",
-    state: "SC",
-    postalCode: "29601",
-    country: "United States",
-    notes: "Supplier of Belgian linen and combed organic cotton textiles for bedding & cushions.",
-    status: "ACTIVE"
-  },
-  {
-    supplierCode: "SUP-003",
-    supplierType: "BUSINESS",
-    companyName: "Piedmont Brass & Metals",
-    contactPerson: "David Zhao",
-    email: "sales@piedmontbrass.com",
-    phone: "(704) 555-0199",
-    alternatePhone: "",
-    taxId: "56-3456789",
-    paymentTerms: "Net 15",
-    openingBalance: 0,
-    addressLine1: "820 Foundry St",
-    addressLine2: "Suite 12",
-    city: "Charlotte",
-    state: "NC",
-    postalCode: "28202",
-    country: "United States",
-    notes: "Precision hardware pulls, brass table footings, and architectural lighting metal components.",
-    status: "ACTIVE"
-  },
-  {
-    supplierCode: "SUP-004",
-    supplierType: "BUSINESS",
-    companyName: "Carolina Cushion & Foam",
-    contactPerson: "Sarah Jenkins",
-    email: "s.jenkins@carolinafoam.com",
-    phone: "(336) 555-0167",
-    alternatePhone: "(336) 555-0168",
-    taxId: "56-9876543",
-    paymentTerms: "Due on Receipt",
-    openingBalance: 0,
-    addressLine1: "310 Upholstery Lane",
-    addressLine2: "",
-    city: "High Point",
-    state: "NC",
-    postalCode: "27260",
-    country: "United States",
-    notes: "High-density CertiPUR-US polyurethane foam inserts and down-blend sofa cushion cores.",
-    status: "ACTIVE"
-  },
-  {
-    supplierCode: "SUP-005",
-    supplierType: "BUSINESS",
-    companyName: "Blue Ridge Ceramic & Pottery",
-    contactPerson: "Elena Vasquez",
-    email: "elena@blueridgeceramics.com",
-    phone: "(828) 555-0133",
-    alternatePhone: "",
-    taxId: "56-7412589",
-    paymentTerms: "Net 30",
-    openingBalance: 0,
-    addressLine1: "74 Kiln Road",
-    addressLine2: "",
-    city: "Boone",
-    state: "NC",
-    postalCode: "28607",
-    country: "United States",
-    notes: "Handcrafted stoneware tabletop accessories, ceramic lamp bases, and terracotta planters.",
-    status: "ACTIVE"
-  }
-];
 var getAllSuppliers = async (filters, pagination) => {
-  const existingCount = await prisma.supplier.count();
-  if (existingCount === 0) {
-    await prisma.supplier.createMany({
-      data: initialSuppliers,
-      skipDuplicates: true
-    });
-  }
   const where = {};
   if (filters?.status && filters.status !== "ALL") {
     where.status = filters.status;
@@ -2065,98 +1900,6 @@ var parseDateRangeFilter = (timeRange, startDate, endDate) => {
 };
 
 // src/services/purchase.service.ts
-var initialPurchases = [
-  {
-    purchaseNumber: "PO-2026-001",
-    supplierId: 1,
-    supplierName: "Appalachian Hardwood Mills",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    purchaseDate: /* @__PURE__ */ new Date("2026-09-10T10:00:00Z"),
-    expectedDate: /* @__PURE__ */ new Date("2026-09-24T15:30:00Z"),
-    supplierInvoiceNumber: "INV-AHM-9821",
-    containerNumber: "MSCU-829104-5",
-    status: "RECEIVED",
-    items: [
-      {
-        id: 101,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 10,
-        unitCost: 450,
-        discount: 0,
-        taxRate: 0,
-        lineTotal: 4500,
-        receivedQuantity: 10
-      },
-      {
-        id: 102,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 15,
-        unitCost: 170,
-        discount: 50,
-        taxRate: 0,
-        lineTotal: 2500,
-        receivedQuantity: 15
-      }
-    ],
-    subtotal: 7e3,
-    discount: 50,
-    tax: 0,
-    additionalCharges: 350,
-    grandTotal: 7300,
-    amountPaid: 7300,
-    balanceDue: 0,
-    notes: "Direct flatbed freight shipment from Asheville lumber yard."
-  },
-  {
-    purchaseNumber: "PO-2026-002",
-    supplierId: 2,
-    supplierName: "Heritage Loom & Textile Co.",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    purchaseDate: /* @__PURE__ */ new Date("2026-10-05T09:15:00Z"),
-    expectedDate: /* @__PURE__ */ new Date("2026-11-02T12:00:00Z"),
-    supplierInvoiceNumber: "HLT-44021",
-    containerNumber: "MAEU-551029-1",
-    status: "ORDERED",
-    items: [
-      {
-        id: 201,
-        productId: 1,
-        sku: "BED-001",
-        productName: "Cotton Bedsheet Set - Queen",
-        quantity: 30,
-        unitCost: 120,
-        discount: 0,
-        taxRate: 0,
-        lineTotal: 3600,
-        receivedQuantity: 0
-      }
-    ],
-    subtotal: 3600,
-    discount: 0,
-    tax: 0,
-    additionalCharges: 180,
-    grandTotal: 3780,
-    amountPaid: 1500,
-    balanceDue: 2280,
-    notes: "Container arrival expected at Port Newark with rail transfer to NC."
-  }
-];
-var seedInitialPurchases = async () => {
-  const count = await prisma.purchase.count();
-  if (count === 0) {
-    for (const po of initialPurchases) {
-      await prisma.purchase.create({
-        data: po
-      });
-    }
-  }
-};
 var generateNextPoNumber = async () => {
   const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
   const prefix = `PO-${currentYear}-`;
@@ -2179,7 +1922,6 @@ var generateNextPoNumber = async () => {
   return `${prefix}${String(nextSeq).padStart(3, "0")}`;
 };
 var getAllPurchases = async (filters, pagination) => {
-  await seedInitialPurchases();
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -2250,7 +1992,6 @@ var getAllPurchases = async (filters, pagination) => {
   };
 };
 var getPurchaseById = async (id) => {
-  await seedInitialPurchases();
   const purchase = await prisma.purchase.findUnique({
     where: { id }
   });
@@ -2460,7 +2201,14 @@ var updatePurchase = async (id, data) => {
   return updated;
 };
 var deletePurchase = async (id) => {
-  await getPurchaseById(id);
+  const existing = await prisma.purchase.findUnique({
+    where: { id }
+  });
+  if (!existing) {
+    const error = new Error("Purchase order not found");
+    error.statusCode = 404;
+    throw error;
+  }
   await prisma.purchase.delete({
     where: { id }
   });
@@ -2619,109 +2367,6 @@ var createInvoiceSchema = z9.object({
 var updateInvoiceSchema = createInvoiceSchema.partial();
 
 // src/services/invoice.service.ts
-var initialInvoices = [
-  {
-    invoiceNumber: "INV-2026-001",
-    invoiceDate: /* @__PURE__ */ new Date("2026-10-14T11:00:00Z"),
-    dueDate: /* @__PURE__ */ new Date("2026-11-14T11:00:00Z"),
-    salesChannel: "Website",
-    externalOrderId: "ORD-99120",
-    buyerName: "Eleanor Vance",
-    buyerEmail: "eleanor.vance@example.com",
-    buyerPhone: "+1 (555) 234-5678",
-    billingAddress: "742 Evergreen Terrace, Springfield, OR 97477",
-    shippingAddress: "742 Evergreen Terrace, Springfield, OR 97477",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    items: [
-      {
-        id: 1,
-        productId: 1,
-        sku: "BED-001",
-        productName: "Cotton Bedsheet Set - Queen",
-        quantity: 2,
-        unitPrice: 180,
-        discount: 20,
-        taxRate: 8.25,
-        lineTotal: 340
-      },
-      {
-        id: 2,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 1,
-        unitPrice: 280,
-        discount: 0,
-        taxRate: 8.25,
-        lineTotal: 280
-      }
-    ],
-    subtotal: 620,
-    discountTotal: 20,
-    taxTotal: 49.5,
-    shippingCharges: 25,
-    additionalCharges: 0,
-    grandTotal: 674.5,
-    amountPaid: 674.5,
-    balanceDue: 0,
-    paymentStatus: "PAID",
-    paymentMethod: "CREDIT_CARD",
-    status: "ISSUED",
-    notes: "Front porch delivery requested with signature requirement.",
-    termsAndConditions: "Standard 30-day return policy. Retain receipt for warranty claims."
-  },
-  {
-    invoiceNumber: "INV-2026-002",
-    invoiceDate: /* @__PURE__ */ new Date("2026-10-28T14:30:00Z"),
-    dueDate: /* @__PURE__ */ new Date("2026-11-28T14:30:00Z"),
-    salesChannel: "B2B Wholesale",
-    externalOrderId: "PO-CLIENT-411",
-    buyerName: "Theodore Finch",
-    buyerEmail: "theodore@finch-interiors.com",
-    buyerPhone: "+1 (555) 876-5432",
-    billingAddress: "450 Lexington Ave, Suite 1200, New York, NY 10017",
-    shippingAddress: "450 Lexington Ave, Suite 1200, New York, NY 10017",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    items: [
-      {
-        id: 3,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 2,
-        unitPrice: 650,
-        discount: 50,
-        taxRate: 8.25,
-        lineTotal: 1250
-      }
-    ],
-    subtotal: 1250,
-    discountTotal: 50,
-    taxTotal: 99,
-    shippingCharges: 85,
-    additionalCharges: 0,
-    grandTotal: 1384,
-    amountPaid: 500,
-    balanceDue: 884,
-    paymentStatus: "PARTIALLY_PAID",
-    paymentMethod: "BANK_TRANSFER",
-    status: "ISSUED",
-    notes: "Commercial delivery between 9 AM and 4 PM with freight elevator access.",
-    termsAndConditions: "Net 30 terms. Late fees of 1.5% apply after 30 days."
-  }
-];
-var seedInitialInvoices = async () => {
-  const count = await prisma.invoice.count();
-  if (count === 0) {
-    for (const inv of initialInvoices) {
-      await prisma.invoice.create({
-        data: inv
-      });
-    }
-  }
-};
 var generateNextInvoiceNumber = async () => {
   const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
   const prefix = `INV-${currentYear}-`;
@@ -2744,7 +2389,6 @@ var generateNextInvoiceNumber = async () => {
   return `${prefix}${String(nextSeq).padStart(3, "0")}`;
 };
 var getAllInvoices = async (filters, pagination) => {
-  await seedInitialInvoices();
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -2827,7 +2471,6 @@ var getAllInvoices = async (filters, pagination) => {
   };
 };
 var getInvoiceById = async (id) => {
-  await seedInitialInvoices();
   const invoice = await prisma.invoice.findUnique({
     where: { id }
   });
@@ -3109,7 +2752,14 @@ var updateInvoice = async (id, data) => {
   return updated;
 };
 var deleteInvoice = async (id) => {
-  await getInvoiceById(id);
+  const existing = await prisma.invoice.findUnique({
+    where: { id }
+  });
+  if (!existing) {
+    const error = new Error("Invoice not found");
+    error.statusCode = 404;
+    throw error;
+  }
   await prisma.invoice.delete({
     where: { id }
   });
@@ -3683,98 +3333,7 @@ var computeInitials = (name) => {
   }
   return (parts[0] ? parts[0].slice(0, 2) : "US").toUpperCase();
 };
-var initialUsersSeed = [
-  {
-    name: "Aarav Rathi",
-    mobile: "+1 (704) 555-0112",
-    email: "aarav@sundarafurnishings.com",
-    role: "ADMIN",
-    roleTitle: "Administrator",
-    roleId: "role-admin",
-    status: "ACTIVE",
-    initials: "AR",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123"
-  },
-  {
-    name: "Maya Whitfield",
-    mobile: "+1 (704) 555-0145",
-    email: "maya@sundarafurnishings.com",
-    role: "EMPLOYEE",
-    roleTitle: "Sales Manager",
-    roleId: "role-sales-mgr",
-    status: "ACTIVE",
-    initials: "MW",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123"
-  },
-  {
-    name: "Daniel Ochoa",
-    mobile: "+1 (704) 555-0178",
-    email: "daniel@sundarafurnishings.com",
-    role: "EMPLOYEE",
-    roleTitle: "Purchase Executive",
-    roleId: "role-purchase-exec",
-    status: "ACTIVE",
-    initials: "DO",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123"
-  },
-  {
-    name: "Hannah Brooks",
-    mobile: "+1 (704) 555-0198",
-    email: "hannah@sundarafurnishings.com",
-    role: "EMPLOYEE",
-    roleTitle: "Store Keeper",
-    roleId: "role-store-keeper",
-    status: "ACTIVE",
-    initials: "HB",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123"
-  },
-  {
-    name: "Marcus Chen",
-    mobile: "+1 (704) 555-0133",
-    email: "marcus@sundarafurnishings.com",
-    role: "EMPLOYEE",
-    roleTitle: "Accountant",
-    roleId: "role-accountant",
-    status: "INACTIVE",
-    initials: "MC",
-    avatarBg: "bg-emerald-700 text-white",
-    password: "Password@123"
-  }
-];
-var seedInitialUsers = async () => {
-  const count = await prisma.user.count();
-  if (count <= 1) {
-    for (const u of initialUsersSeed) {
-      const exists = await prisma.user.findUnique({
-        where: { email: u.email }
-      });
-      if (!exists) {
-        const hashedPassword = await hashPassword(u.password);
-        await prisma.user.create({
-          data: {
-            name: u.name,
-            email: u.email,
-            mobile: u.mobile,
-            password: hashedPassword,
-            role: u.role,
-            roleTitle: u.roleTitle,
-            roleId: u.roleId,
-            status: u.status,
-            initials: u.initials,
-            avatarBg: u.avatarBg,
-            isActive: u.status === "ACTIVE"
-          }
-        });
-      }
-    }
-  }
-};
 var getAllUsers = async (filters, pagination) => {
-  await seedInitialUsers();
   const whereClause = {};
   if (filters?.roleId) {
     whereClause.roleId = filters.roleId;
@@ -3848,7 +3407,6 @@ var getAllUsers = async (filters, pagination) => {
   };
 };
 var getUserById = async (id) => {
-  await seedInitialUsers();
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
@@ -4186,52 +3744,7 @@ var createSalesChannelSchema = z12.object({
 var updateSalesChannelSchema = createSalesChannelSchema.partial();
 
 // src/services/salesChannel.service.ts
-var initialChannels = [
-  {
-    name: "Website",
-    code: "WEB",
-    type: "OWN_WEBSITE",
-    website: "https://sundarafurnishings.com",
-    description: "Official Sundara Furnishings online store.",
-    status: "ACTIVE"
-  },
-  {
-    name: "Amazon",
-    code: "AMZ",
-    type: "MARKETPLACE",
-    website: "https://www.amazon.com",
-    description: "Product listings and sales through Amazon marketplace.",
-    status: "ACTIVE"
-  },
-  {
-    name: "Wayfair",
-    code: "WAY",
-    type: "MARKETPLACE",
-    website: "https://www.wayfair.com",
-    description: "Furniture and home decor retail marketplace.",
-    status: "ACTIVE"
-  },
-  {
-    name: "Direct Shop / Retail Showroom",
-    code: "POS",
-    type: "RETAIL",
-    website: "",
-    description: "Direct walk-in customer purchases through physical showroom.",
-    status: "ACTIVE"
-  }
-];
-var seedInitialSalesChannels = async () => {
-  const count = await prisma.salesChannel.count();
-  if (count === 0) {
-    for (const c of initialChannels) {
-      await prisma.salesChannel.create({
-        data: c
-      });
-    }
-  }
-};
 var getAllSalesChannels = async (filters, pagination) => {
-  await seedInitialSalesChannels();
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -4299,7 +3812,6 @@ var getAllSalesChannels = async (filters, pagination) => {
   };
 };
 var getSalesChannelById = async (id) => {
-  await seedInitialSalesChannels();
   const channel = await prisma.salesChannel.findUnique({
     where: { id }
   });
@@ -4527,74 +4039,6 @@ var adjustStockSchema = z13.object({
 });
 
 // src/services/inventory.service.ts
-var initialLedgerSeed = [
-  {
-    date: /* @__PURE__ */ new Date("2026-09-24T15:30:00Z"),
-    productId: 5,
-    sku: "TBL-002",
-    productName: "Walnut Console Table",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-001",
-    quantityChange: 10,
-    previousBalance: 0,
-    newBalance: 10,
-    notes: "Supplier Appalachian Hardwood Mills shipment check-in"
-  },
-  {
-    date: /* @__PURE__ */ new Date("2026-09-24T15:30:00Z"),
-    productId: 3,
-    sku: "TBL-001",
-    productName: "Oak Side Table",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-001",
-    quantityChange: 15,
-    previousBalance: 0,
-    newBalance: 15,
-    notes: "Supplier Appalachian Hardwood Mills shipment check-in"
-  },
-  {
-    date: /* @__PURE__ */ new Date("2026-10-02T11:45:00Z"),
-    productId: 2,
-    sku: "CHR-001",
-    productName: "Luna Accent Chair",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "PURCHASE_RECEIPT",
-    referenceDocument: "PO-2026-003",
-    quantityChange: 20,
-    previousBalance: 0,
-    newBalance: 20,
-    notes: "Vendor procurement check-in at dock"
-  },
-  {
-    date: /* @__PURE__ */ new Date("2026-10-14T10:15:00Z"),
-    productId: 1,
-    sku: "BED-001",
-    productName: "Cotton Bedsheet Set - Queen",
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    movementType: "SALES_INVOICE",
-    referenceDocument: "INV-2026-001",
-    quantityChange: -2,
-    previousBalance: 44,
-    newBalance: 42,
-    notes: "Customer sales order fulfillment"
-  }
-];
-var seedInitialStockLedger = async () => {
-  const count = await prisma.stockLedger.count();
-  if (count === 0) {
-    for (const entry of initialLedgerSeed) {
-      await prisma.stockLedger.create({
-        data: entry
-      });
-    }
-  }
-};
 var getInventorySummary = async (filters, pagination) => {
   const whereClause = {};
   if (filters?.categoryId) {
@@ -4689,7 +4133,6 @@ var getInventoryAlerts = async () => {
   );
 };
 var getStockLedger = async (filters, pagination) => {
-  await seedInitialStockLedger();
   const whereClause = {};
   if (filters?.productId) {
     whereClause.productId = filters.productId;
@@ -4974,86 +4417,6 @@ var calculateLandedCosts = (items, expenseHeads) => {
     };
   });
 };
-var initialImportsSeed = [
-  {
-    importNumber: "IMP-2026-001",
-    supplierId: 2,
-    supplierName: "Royal Teak Exports Ltd",
-    supplierInvoiceNumber: "RTE-INV-99412",
-    purchaseId: 1,
-    purchaseNumber: "PO-2026-001",
-    shipmentReference: "BOL-MSC-774129",
-    importDate: /* @__PURE__ */ new Date("2026-10-12T10:00:00Z"),
-    warehouseId: 1,
-    warehouseName: "Central Distribution Center (CDC)",
-    status: "COMPLETED",
-    items: [
-      {
-        id: 1,
-        productId: 5,
-        sku: "TBL-002",
-        productName: "Walnut Console Table",
-        quantity: 10,
-        purchaseUnitCost: 450,
-        purchaseTotalCost: 4500,
-        allocatedExpense: 375,
-        totalLandedCost: 4875,
-        landedUnitCost: 487.5
-      },
-      {
-        id: 2,
-        productId: 3,
-        sku: "TBL-001",
-        productName: "Oak Side Table",
-        quantity: 15,
-        purchaseUnitCost: 170,
-        purchaseTotalCost: 2550,
-        allocatedExpense: 212.5,
-        totalLandedCost: 2762.5,
-        landedUnitCost: 184.17
-      }
-    ],
-    expenseHeads: [
-      {
-        id: 1,
-        type: "FREIGHT",
-        description: "Ocean Freight - MSC Flaminia Container 40ft",
-        amount: 350,
-        allocationMethod: "BY_VALUE"
-      },
-      {
-        id: 2,
-        type: "CUSTOMS",
-        description: "US Customs & Border Protection Harbor Tariff",
-        amount: 150,
-        allocationMethod: "BY_VALUE"
-      },
-      {
-        id: 3,
-        type: "PORT_HANDLING",
-        description: "Port Newark Terminal Drayage and Offload",
-        amount: 87.5,
-        allocationMethod: "BY_VALUE"
-      }
-    ],
-    totalProductCost: 7050,
-    totalAdditionalCosts: 587.5,
-    totalLandedCost: 7637.5,
-    documentName: "Customs_Bill_of_Lading_MSC774129.pdf",
-    documentExtracted: true,
-    notes: "Direct container clearance through Port Newark."
-  }
-];
-var seedInitialImports = async () => {
-  const count = await prisma.importShipment.count();
-  if (count === 0) {
-    for (const imp of initialImportsSeed) {
-      await prisma.importShipment.create({
-        data: imp
-      });
-    }
-  }
-};
 var generateNextImportNumber = async () => {
   const year = (/* @__PURE__ */ new Date()).getFullYear();
   const prefix = `IMP-${year}-`;
@@ -5076,7 +4439,6 @@ var generateNextImportNumber = async () => {
   return `${prefix}${String(nextSeq).padStart(3, "0")}`;
 };
 var getAllImports = async (filters, pagination) => {
-  await seedInitialImports();
   const whereClause = {};
   if (filters?.status && filters.status !== "ALL") {
     whereClause.status = filters.status;
@@ -5158,7 +4520,6 @@ var getAllImports = async (filters, pagination) => {
   };
 };
 var getImportById = async (id) => {
-  await seedInitialImports();
   const shipment = await prisma.importShipment.findUnique({
     where: { id }
   });
@@ -5292,7 +4653,14 @@ var updateImportShipment = async (id, data) => {
   return updated;
 };
 var deleteImportShipment = async (id) => {
-  await getImportById(id);
+  const existing = await prisma.importShipment.findUnique({
+    where: { id }
+  });
+  if (!existing) {
+    const error = new Error("Import shipment not found");
+    error.statusCode = 404;
+    throw error;
+  }
   await prisma.importShipment.delete({
     where: { id }
   });
