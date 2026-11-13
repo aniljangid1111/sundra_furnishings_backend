@@ -83,6 +83,8 @@ export const getInventorySummary = async (
       available,
       reorderLevel,
       unitCost: product.costPrice,
+      sellingPrice: product.sellingPrice,
+      finalPrice: product.costPrice,
       inventoryValue,
       stockStatus,
       uom: product.uom || "PCS",

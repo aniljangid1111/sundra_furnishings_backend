@@ -309,6 +309,25 @@ export const createImportShipment = async (data: CreateImportInput) => {
     },
   });
 
+  // Automatically sync landed cost into Product catalog and increment stock if completed
+  for (const item of calculatedItems) {
+    if (item.productId && Number(item.landedUnitCost) > 0) {
+      try {
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            costPrice: Number(item.landedUnitCost),
+            ...(shipment.status === "COMPLETED" && Number(item.quantity) > 0
+              ? { stock: { increment: Number(item.quantity) } }
+              : {}),
+          },
+        });
+      } catch (e) {
+        console.error(`Failed to update product ${item.productId} with landed cost:`, e);
+      }
+    }
+  }
+
   return shipment;
 };
 
@@ -363,6 +382,25 @@ export const updateImportShipment = async (id: number, data: UpdateImportInput) 
       ...(data.notes !== undefined && { notes: data.notes }),
     },
   });
+
+  // Automatically sync updated landed cost into Product catalog
+  for (const item of calculatedItems) {
+    if (item.productId && Number(item.landedUnitCost) > 0) {
+      try {
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            costPrice: Number(item.landedUnitCost),
+            ...(existing.status !== "COMPLETED" && updated.status === "COMPLETED" && Number(item.quantity) > 0
+              ? { stock: { increment: Number(item.quantity) } }
+              : {}),
+          },
+        });
+      } catch (e) {
+        console.error(`Failed to update product ${item.productId} with landed cost:`, e);
+      }
+    }
+  }
 
   return updated;
 };

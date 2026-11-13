@@ -8,6 +8,7 @@ export const invoiceLineItemSchema = z.object({
   productName: z.string().optional(),
   quantity: z.number().min(1, "Quantity must be at least 1"),
   unitPrice: z.number().min(0, "Unit price cannot be negative").optional(),
+  costPrice: z.number().min(0).optional(),
   discount: z.number().min(0).default(0).optional(),
   taxRate: z.number().min(0).default(8.25).optional(),
   lineTotal: z.number().min(0).optional(),

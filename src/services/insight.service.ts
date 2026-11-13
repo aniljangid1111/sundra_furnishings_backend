@@ -78,7 +78,12 @@ export const getDashboardInsights = async (filters?: {
     if (Array.isArray(items)) {
       for (const item of items) {
         const prod = products.find((p) => p.id === Number(item.productId));
-        const costPrice = prod ? prod.costPrice : 0;
+        const costPrice =
+          item.costPrice !== undefined
+            ? Number(item.costPrice)
+            : prod
+            ? prod.costPrice
+            : 0;
         const qty = Number(item.quantity) || 0;
         const lineTotal = Number(item.lineTotal) || qty * (item.unitPrice || 0);
 
@@ -210,10 +215,22 @@ export const getDashboardInsights = async (filters?: {
       (sum, inv) => sum + (Number(inv.grandTotal) || 0),
       0
     );
-    const cost = monthPurchases.reduce(
-      (sum, po) => sum + (Number(po.grandTotal) || 0),
-      0
-    );
+
+    let monthCOGS = 0;
+    for (const inv of monthInvoices) {
+      const items = inv.items as any[];
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const prod = products.find((p) => p.id === Number(item.productId));
+          const unitCost = item.costPrice !== undefined ? Number(item.costPrice) : (prod ? prod.costPrice : 0);
+          monthCOGS += (Number(item.quantity) || 0) * unitCost;
+        }
+      }
+    }
+
+    const cost = monthPurchases.length > 0
+      ? monthPurchases.reduce((sum, po) => sum + (Number(po.grandTotal) || 0), 0)
+      : monthCOGS;
     const profit = Math.max(0, revenue - cost);
 
     return {

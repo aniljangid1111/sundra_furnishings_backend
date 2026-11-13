@@ -9,6 +9,7 @@ import { Router as Router16 } from "express";
 import { Router } from "express";
 
 // src/database/prisma.ts
+import dns from "node:dns";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 // generated/prisma/client.ts
@@ -102,6 +103,16 @@ if (!parsedEnv.success) {
 var env = parsedEnv.data;
 
 // src/database/prisma.ts
+dns.setDefaultResultOrder("ipv4first");
+var originalLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
+  const opts = typeof options === "object" && options !== null ? { ...options, family: 4 } : { family: 4 };
+  return originalLookup(hostname, opts, callback);
+};
 var globalForPrisma = globalThis;
 var adapter = new PrismaPg({
   connectionString: env.DATABASE_URL
@@ -982,7 +993,7 @@ var createProductSchema = z5.object({
   taxRate: z5.number().min(0).max(100).default(8.25),
   status: z5.enum(["ACTIVE", "INACTIVE"]).optional().default("ACTIVE"),
   imageUrl: z5.string().nullable().optional(),
-  salesChannels: z5.array(z5.string()).optional().default([])
+  salesChannels: z5.union([z5.array(z5.string()), z5.array(z5.any())]).optional().default([])
 });
 var updateProductSchema = z5.object({
   name: z5.string().min(2, "Product name must be at least 2 characters").trim().optional(),
@@ -996,7 +1007,7 @@ var updateProductSchema = z5.object({
   taxRate: z5.number().min(0).max(100).optional(),
   status: z5.enum(["ACTIVE", "INACTIVE"]).optional(),
   imageUrl: z5.string().nullable().optional(),
-  salesChannels: z5.array(z5.string()).optional()
+  salesChannels: z5.union([z5.array(z5.string()), z5.array(z5.any())]).optional()
 });
 
 // src/services/product.service.ts
@@ -1847,6 +1858,12 @@ var updatePurchaseSchema = createPurchaseSchema.partial();
 var parseDateRangeFilter = (timeRange, startDate, endDate) => {
   const range = (timeRange || "").toUpperCase().trim();
   const now = /* @__PURE__ */ new Date();
+  const getEndOfTomorrow = () => {
+    const end = new Date(now);
+    end.setDate(end.getDate() + 1);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  };
   if (range === "CUSTOM" || !range && (startDate || endDate)) {
     if (!startDate && !endDate) return void 0;
     const filter = {};
@@ -1864,26 +1881,25 @@ var parseDateRangeFilter = (timeRange, startDate, endDate) => {
   }
   if (range === "TODAY") {
     const start = new Date(now);
+    start.setDate(start.getDate() - 1);
     start.setHours(0, 0, 0, 0);
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-    return { gte: start, lte: end };
+    return { gte: start, lte: getEndOfTomorrow() };
   }
   if (range === "7D") {
     const start = new Date(now);
     start.setDate(now.getDate() - 7);
     start.setHours(0, 0, 0, 0);
-    return { gte: start, lte: now };
+    return { gte: start, lte: getEndOfTomorrow() };
   }
   if (range === "30D") {
     const start = new Date(now);
     start.setDate(now.getDate() - 30);
     start.setHours(0, 0, 0, 0);
-    return { gte: start, lte: now };
+    return { gte: start, lte: getEndOfTomorrow() };
   }
   if (range === "THIS_MONTH") {
     const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 23, 59, 59, 999);
     return { gte: start, lte: end };
   }
   if (range === "LAST_MONTH") {
@@ -1893,7 +1909,7 @@ var parseDateRangeFilter = (timeRange, startDate, endDate) => {
   }
   if (range === "THIS_YEAR") {
     const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    const end = new Date(now.getFullYear() + 1, 0, 1, 23, 59, 59, 999);
     return { gte: start, lte: end };
   }
   return void 0;
@@ -2091,12 +2107,16 @@ var createPurchase = async (data) => {
     }
   });
   if (status === "RECEIVED") {
+    const totalPOQty = resolvedItems.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+    const allocatedPerUnit = totalPOQty > 0 ? (Number(additionalCharges) || 0) / totalPOQty : 0;
     for (const item of resolvedItems) {
       if (item.productId && item.quantity) {
+        const landedUnitCost = Number((Number(item.unitCost) + allocatedPerUnit).toFixed(2));
         await prisma.product.updateMany({
           where: { id: Number(item.productId) },
           data: {
-            stock: { increment: Number(item.quantity) }
+            stock: { increment: Number(item.quantity) },
+            ...landedUnitCost > 0 ? { costPrice: landedUnitCost } : {}
           }
         });
       }
@@ -2187,12 +2207,29 @@ var updatePurchase = async (id, data) => {
   });
   if (existing.status !== "RECEIVED" && data.status === "RECEIVED") {
     const items = updated.items || [];
+    const totalPOQty = items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+    const allocatedPerUnit = totalPOQty > 0 ? (Number(updated.additionalCharges) || 0) / totalPOQty : 0;
+    for (const item of items) {
+      if (item.productId && item.quantity) {
+        const landedUnitCost = Number((Number(item.unitCost) + allocatedPerUnit).toFixed(2));
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            stock: { increment: Number(item.quantity) },
+            ...landedUnitCost > 0 ? { costPrice: landedUnitCost } : {}
+          }
+        });
+      }
+    }
+  }
+  if (existing.status === "RECEIVED" && data.status && data.status !== "RECEIVED") {
+    const items = existing.items || [];
     for (const item of items) {
       if (item.productId && item.quantity) {
         await prisma.product.updateMany({
           where: { id: Number(item.productId) },
           data: {
-            stock: { increment: Number(item.quantity) }
+            stock: { decrement: Number(item.quantity) }
           }
         });
       }
@@ -2326,6 +2363,7 @@ var invoiceLineItemSchema = z9.object({
   productName: z9.string().optional(),
   quantity: z9.number().min(1, "Quantity must be at least 1"),
   unitPrice: z9.number().min(0, "Unit price cannot be negative").optional(),
+  costPrice: z9.number().min(0).optional(),
   discount: z9.number().min(0).default(0).optional(),
   taxRate: z9.number().min(0).default(8.25).optional(),
   lineTotal: z9.number().min(0).optional()
@@ -2368,25 +2406,35 @@ var updateInvoiceSchema = createInvoiceSchema.partial();
 
 // src/services/invoice.service.ts
 var generateNextInvoiceNumber = async () => {
-  const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
-  const prefix = `INV-${currentYear}-`;
-  const latest = await prisma.invoice.findFirst({
+  const prefix = "SF-INV-";
+  const existingInvoices = await prisma.invoice.findMany({
     where: {
       invoiceNumber: {
-        startsWith: prefix
+        startsWith: prefix,
+        mode: "insensitive"
       }
     },
-    orderBy: {
-      id: "desc"
+    select: {
+      invoiceNumber: true
     }
   });
-  if (!latest) {
-    return `${prefix}001`;
+  let maxSeq = 0;
+  for (const inv of existingInvoices) {
+    const match = inv.invoiceNumber.match(/SF-INV-(\d+)/i);
+    if (match && match[1]) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxSeq) {
+        maxSeq = num;
+      }
+    }
   }
-  const parts = latest.invoiceNumber.split("-");
-  const lastSeq = parseInt(parts[parts.length - 1], 10);
-  const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
-  return `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  let nextSeq = maxSeq + 1;
+  let candidate = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  while (await prisma.invoice.findUnique({ where: { invoiceNumber: candidate } })) {
+    nextSeq++;
+    candidate = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  }
+  return candidate;
 };
 var getAllInvoices = async (filters, pagination) => {
   const whereClause = {};
@@ -2482,7 +2530,15 @@ var getInvoiceById = async (id) => {
   return invoice;
 };
 var createInvoice = async (data) => {
-  const invoiceNumber = data.invoiceNumber || await generateNextInvoiceNumber();
+  let invoiceNumber = data.invoiceNumber?.trim();
+  if (!invoiceNumber) {
+    invoiceNumber = await generateNextInvoiceNumber();
+  } else {
+    const existing = await prisma.invoice.findUnique({ where: { invoiceNumber } });
+    if (existing) {
+      invoiceNumber = await generateNextInvoiceNumber();
+    }
+  }
   let warehouseName = data.warehouseName;
   if (data.warehouseId && !warehouseName) {
     const wh = await prisma.warehouse.findUnique({
@@ -2495,16 +2551,18 @@ var createInvoice = async (data) => {
       let sku = item.sku;
       let productName = item.productName;
       let unitPrice = item.unitPrice;
-      if (!sku || !productName || unitPrice === void 0) {
-        const prod = await prisma.product.findUnique({
+      let prod = null;
+      if (item.productId) {
+        prod = await prisma.product.findUnique({
           where: { id: Number(item.productId) }
         });
-        if (prod) {
-          sku = sku || prod.sku;
-          productName = productName || prod.name;
-          unitPrice = unitPrice !== void 0 ? unitPrice : prod.sellingPrice;
-        }
       }
+      if (prod) {
+        sku = sku || prod.sku;
+        productName = productName || prod.name;
+        unitPrice = unitPrice !== void 0 ? unitPrice : prod.sellingPrice;
+      }
+      const costPrice = item.costPrice !== void 0 ? Number(item.costPrice) : prod ? prod.costPrice : 0;
       const price = Number(unitPrice) || 0;
       const discount = Number(item.discount) || 0;
       const quantity = Number(item.quantity) || 1;
@@ -2516,6 +2574,7 @@ var createInvoice = async (data) => {
         productName: productName || `Product ${item.productId}`,
         quantity,
         unitPrice: price,
+        costPrice,
         discount,
         taxRate: Number(item.taxRate) || 8.25,
         lineTotal
@@ -2609,16 +2668,18 @@ var updateInvoice = async (id, data) => {
         let sku = item.sku;
         let productName = item.productName;
         let unitPrice = item.unitPrice;
-        if (!sku || !productName || unitPrice === void 0) {
-          const prod = await prisma.product.findUnique({
+        let prod = null;
+        if (item.productId) {
+          prod = await prisma.product.findUnique({
             where: { id: Number(item.productId) }
           });
-          if (prod) {
-            sku = sku || prod.sku;
-            productName = productName || prod.name;
-            unitPrice = unitPrice !== void 0 ? unitPrice : prod.sellingPrice;
-          }
         }
+        if (prod) {
+          sku = sku || prod.sku;
+          productName = productName || prod.name;
+          unitPrice = unitPrice !== void 0 ? unitPrice : prod.sellingPrice;
+        }
+        const costPrice = item.costPrice !== void 0 ? Number(item.costPrice) : prod ? prod.costPrice : 0;
         const price = Number(unitPrice) || 0;
         const discount = Number(item.discount) || 0;
         const quantity = Number(item.quantity) || 1;
@@ -2630,6 +2691,7 @@ var updateInvoice = async (id, data) => {
           productName: productName || `Product ${item.productId}`,
           quantity,
           unitPrice: price,
+          costPrice,
           discount,
           taxRate: Number(item.taxRate) || 8.25,
           lineTotal
@@ -2658,42 +2720,70 @@ var updateInvoice = async (id, data) => {
       paymentStatus = "PENDING";
     }
   }
-  if (existing.status === "ISSUED" && data.status === "CANCELLED") {
-    const items = existing.items;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        if (item.productId && item.quantity > 0) {
-          try {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: {
-                stock: {
-                  increment: item.quantity
-                }
+  const newStatus = data.status || existing.status;
+  if (existing.status === "ISSUED" && newStatus === "CANCELLED") {
+    const oldItems = existing.items || [];
+    for (const item of oldItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                increment: Number(item.quantity)
               }
-            });
-          } catch {
-          }
+            }
+          });
+        } catch {
         }
       }
     }
-  }
-  if (existing.status === "DRAFT" && data.status === "ISSUED") {
-    const items = resolvedItems || existing.items;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        if (item.productId && item.quantity > 0) {
-          try {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: {
-                stock: {
-                  decrement: item.quantity
-                }
+  } else if (existing.status === "DRAFT" && newStatus === "ISSUED") {
+    const newItems = resolvedItems || existing.items;
+    for (const item of newItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                decrement: Number(item.quantity)
               }
-            });
-          } catch {
-          }
+            }
+          });
+        } catch {
+        }
+      }
+    }
+  } else if (existing.status === "ISSUED" && newStatus === "ISSUED" && resolvedItems) {
+    const oldItems = existing.items || [];
+    for (const item of oldItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                increment: Number(item.quantity)
+              }
+            }
+          });
+        } catch {
+        }
+      }
+    }
+    for (const item of resolvedItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                decrement: Number(item.quantity)
+              }
+            }
+          });
+        } catch {
         }
       }
     }
@@ -4093,6 +4183,8 @@ var getInventorySummary = async (filters, pagination) => {
       available,
       reorderLevel,
       unitCost: product.costPrice,
+      sellingPrice: product.sellingPrice,
+      finalPrice: product.costPrice,
       inventoryValue,
       stockStatus,
       uom: product.uom || "PCS"
@@ -4604,6 +4696,21 @@ var createImportShipment = async (data) => {
       notes: data.notes || null
     }
   });
+  for (const item of calculatedItems) {
+    if (item.productId && Number(item.landedUnitCost) > 0) {
+      try {
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            costPrice: Number(item.landedUnitCost),
+            ...shipment.status === "COMPLETED" && Number(item.quantity) > 0 ? { stock: { increment: Number(item.quantity) } } : {}
+          }
+        });
+      } catch (e) {
+        console.error(`Failed to update product ${item.productId} with landed cost:`, e);
+      }
+    }
+  }
   return shipment;
 };
 var updateImportShipment = async (id, data) => {
@@ -4650,6 +4757,21 @@ var updateImportShipment = async (id, data) => {
       ...data.notes !== void 0 && { notes: data.notes }
     }
   });
+  for (const item of calculatedItems) {
+    if (item.productId && Number(item.landedUnitCost) > 0) {
+      try {
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            costPrice: Number(item.landedUnitCost),
+            ...existing.status !== "COMPLETED" && updated.status === "COMPLETED" && Number(item.quantity) > 0 ? { stock: { increment: Number(item.quantity) } } : {}
+          }
+        });
+      } catch (e) {
+        console.error(`Failed to update product ${item.productId} with landed cost:`, e);
+      }
+    }
+  }
   return updated;
 };
 var deleteImportShipment = async (id) => {
@@ -4835,7 +4957,7 @@ var getDashboardInsights = async (filters) => {
     if (Array.isArray(items)) {
       for (const item of items) {
         const prod = products.find((p) => p.id === Number(item.productId));
-        const costPrice = prod ? prod.costPrice : 0;
+        const costPrice = item.costPrice !== void 0 ? Number(item.costPrice) : prod ? prod.costPrice : 0;
         const qty = Number(item.quantity) || 0;
         const lineTotal = Number(item.lineTotal) || qty * (item.unitPrice || 0);
         totalCostOfGoodsSold += qty * costPrice;
@@ -4942,10 +5064,18 @@ var getDashboardInsights = async (filters) => {
       (sum, inv) => sum + (Number(inv.grandTotal) || 0),
       0
     );
-    const cost = monthPurchases.reduce(
-      (sum, po) => sum + (Number(po.grandTotal) || 0),
-      0
-    );
+    let monthCOGS = 0;
+    for (const inv of monthInvoices) {
+      const items = inv.items;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const prod = products.find((p) => p.id === Number(item.productId));
+          const unitCost = item.costPrice !== void 0 ? Number(item.costPrice) : prod ? prod.costPrice : 0;
+          monthCOGS += (Number(item.quantity) || 0) * unitCost;
+        }
+      }
+    }
+    const cost = monthPurchases.length > 0 ? monthPurchases.reduce((sum, po) => sum + (Number(po.grandTotal) || 0), 0) : monthCOGS;
     const profit = Math.max(0, revenue - cost);
     return {
       month,
@@ -5231,6 +5361,16 @@ var errorHandler = (err, _req, res, _next) => {
 
 // src/app.ts
 var app = express();
+app.set("etag", false);
+app.use((_req, res, next) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store"
+  });
+  next();
+});
 var allowedOrigins = env.CORS_ORIGIN === "*" ? "*" : env.CORS_ORIGIN.split(",").map((o) => o.trim());
 app.use(
   cors({

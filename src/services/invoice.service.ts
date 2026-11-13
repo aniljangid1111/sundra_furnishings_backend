@@ -14,32 +14,45 @@ type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 
 /**
- * Generates the next sequential invoice number (e.g. INV-2026-003)
+ * Generates the next unique sequential invoice number in the format: SF-INV-001, SF-INV-002, etc.
  */
 export const generateNextInvoiceNumber = async (): Promise<string> => {
-  const currentYear = new Date().getFullYear();
-  const prefix = `INV-${currentYear}-`;
+  const prefix = "SF-INV-";
 
-  const latest = await prisma.invoice.findFirst({
+  // Find all invoices with the SF-INV- prefix (case-insensitive)
+  const existingInvoices = await prisma.invoice.findMany({
     where: {
       invoiceNumber: {
         startsWith: prefix,
+        mode: "insensitive",
       },
     },
-    orderBy: {
-      id: "desc",
+    select: {
+      invoiceNumber: true,
     },
   });
 
-  if (!latest) {
-    return `${prefix}001`;
+  let maxSeq = 0;
+  for (const inv of existingInvoices) {
+    const match = inv.invoiceNumber.match(/SF-INV-(\d+)/i);
+    if (match && match[1]) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxSeq) {
+        maxSeq = num;
+      }
+    }
   }
 
-  const parts = latest.invoiceNumber.split("-");
-  const lastSeq = parseInt(parts[parts.length - 1], 10);
-  const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+  let nextSeq = maxSeq + 1;
+  let candidate = `${prefix}${String(nextSeq).padStart(3, "0")}`;
 
-  return `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  // Extra safety: loop to ensure 100% uniqueness (never duplicate numbers)
+  while (await prisma.invoice.findUnique({ where: { invoiceNumber: candidate } })) {
+    nextSeq++;
+    candidate = `${prefix}${String(nextSeq).padStart(3, "0")}`;
+  }
+
+  return candidate;
 };
 
 /**
@@ -180,7 +193,16 @@ export const getInvoiceById = async (id: number) => {
  * Creates a new invoice and decrements stock if issued
  */
 export const createInvoice = async (data: CreateInvoiceInput) => {
-  const invoiceNumber = data.invoiceNumber || (await generateNextInvoiceNumber());
+  let invoiceNumber = data.invoiceNumber?.trim();
+  if (!invoiceNumber) {
+    invoiceNumber = await generateNextInvoiceNumber();
+  } else {
+    // If already exists or format is old, generate a guaranteed fresh unique number
+    const existing = await prisma.invoice.findUnique({ where: { invoiceNumber } });
+    if (existing) {
+      invoiceNumber = await generateNextInvoiceNumber();
+    }
+  }
 
   // Resolve warehouse name if warehouseId provided
   let warehouseName = data.warehouseName;
@@ -198,16 +220,24 @@ export const createInvoice = async (data: CreateInvoiceInput) => {
       let productName = item.productName;
       let unitPrice = item.unitPrice;
 
-      if (!sku || !productName || unitPrice === undefined) {
-        const prod = await prisma.product.findUnique({
+      let prod = null;
+      if (item.productId) {
+        prod = await prisma.product.findUnique({
           where: { id: Number(item.productId) },
         });
-        if (prod) {
-          sku = sku || prod.sku;
-          productName = productName || prod.name;
-          unitPrice = unitPrice !== undefined ? unitPrice : prod.sellingPrice;
-        }
       }
+      if (prod) {
+        sku = sku || prod.sku;
+        productName = productName || prod.name;
+        unitPrice = unitPrice !== undefined ? unitPrice : prod.sellingPrice;
+      }
+
+      const costPrice =
+        item.costPrice !== undefined
+          ? Number(item.costPrice)
+          : prod
+          ? prod.costPrice
+          : 0;
 
       const price = Number(unitPrice) || 0;
       const discount = Number(item.discount) || 0;
@@ -224,6 +254,7 @@ export const createInvoice = async (data: CreateInvoiceInput) => {
         productName: productName || `Product ${item.productId}`,
         quantity,
         unitPrice: price,
+        costPrice,
         discount,
         taxRate: Number(item.taxRate) || 8.25,
         lineTotal,
@@ -338,16 +369,24 @@ export const updateInvoice = async (id: number, data: UpdateInvoiceInput) => {
         let productName = item.productName;
         let unitPrice = item.unitPrice;
 
-        if (!sku || !productName || unitPrice === undefined) {
-          const prod = await prisma.product.findUnique({
+        let prod = null;
+        if (item.productId) {
+          prod = await prisma.product.findUnique({
             where: { id: Number(item.productId) },
           });
-          if (prod) {
-            sku = sku || prod.sku;
-            productName = productName || prod.name;
-            unitPrice = unitPrice !== undefined ? unitPrice : prod.sellingPrice;
-          }
         }
+        if (prod) {
+          sku = sku || prod.sku;
+          productName = productName || prod.name;
+          unitPrice = unitPrice !== undefined ? unitPrice : prod.sellingPrice;
+        }
+
+        const costPrice =
+          item.costPrice !== undefined
+            ? Number(item.costPrice)
+            : prod
+            ? prod.costPrice
+            : 0;
 
         const price = Number(unitPrice) || 0;
         const discount = Number(item.discount) || 0;
@@ -364,6 +403,7 @@ export const updateInvoice = async (id: number, data: UpdateInvoiceInput) => {
           productName: productName || `Product ${item.productId}`,
           quantity,
           unitPrice: price,
+          costPrice,
           discount,
           taxRate: Number(item.taxRate) || 8.25,
           lineTotal,
@@ -409,53 +449,81 @@ export const updateInvoice = async (id: number, data: UpdateInvoiceInput) => {
     }
   }
 
-  // If status transitioned from ISSUED to CANCELLED, restore product stock
-  if (existing.status === "ISSUED" && data.status === "CANCELLED") {
-    const items = existing.items as Array<{
-      productId: number;
-      quantity: number;
-    }>;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        if (item.productId && item.quantity > 0) {
-          try {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: {
-                stock: {
-                  increment: item.quantity,
-                },
+  const newStatus = data.status || existing.status;
+
+  // Inventory Stock Adjustment Logic during Invoice Update:
+  if (existing.status === "ISSUED" && newStatus === "CANCELLED") {
+    // 1. Invoice cancelled: restore all old items back to inventory stock
+    const oldItems = (existing.items as any[]) || [];
+    for (const item of oldItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                increment: Number(item.quantity),
               },
-            });
-          } catch {
-            // Ignore
-          }
+            },
+          });
+        } catch {
+          // Ignore
         }
       }
     }
-  }
-
-  // If status transitioned from DRAFT to ISSUED, decrement product stock
-  if (existing.status === "DRAFT" && data.status === "ISSUED") {
-    const items = (resolvedItems || existing.items) as Array<{
-      productId: number;
-      quantity: number;
-    }>;
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        if (item.productId && item.quantity > 0) {
-          try {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: {
-                stock: {
-                  decrement: item.quantity,
-                },
+  } else if (existing.status === "DRAFT" && newStatus === "ISSUED") {
+    // 2. Invoice transitioned from Draft to Issued: deduct items from inventory
+    const newItems = (resolvedItems || existing.items) as any[];
+    for (const item of newItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                decrement: Number(item.quantity),
               },
-            });
-          } catch {
-            // Ignore
-          }
+            },
+          });
+        } catch {
+          // Ignore
+        }
+      }
+    }
+  } else if (existing.status === "ISSUED" && newStatus === "ISSUED" && resolvedItems) {
+    // 3. Invoice was already ISSUED and items were edited/modified:
+    // First, restore old items stock
+    const oldItems = (existing.items as any[]) || [];
+    for (const item of oldItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                increment: Number(item.quantity),
+              },
+            },
+          });
+        } catch {
+          // Ignore
+        }
+      }
+    }
+    // Then, deduct new items stock
+    for (const item of resolvedItems) {
+      if (item.productId && item.quantity > 0) {
+        try {
+          await prisma.product.update({
+            where: { id: Number(item.productId) },
+            data: {
+              stock: {
+                decrement: Number(item.quantity),
+              },
+            },
+          });
+        } catch {
+          // Ignore
         }
       }
     }

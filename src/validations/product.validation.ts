@@ -13,7 +13,7 @@ export const createProductSchema = z.object({
   taxRate: z.number().min(0).max(100).default(8.25),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional().default("ACTIVE"),
   imageUrl: z.string().nullable().optional(),
-  salesChannels: z.array(z.string()).optional().default([]),
+  salesChannels: z.union([z.array(z.string()), z.array(z.any())]).optional().default([]),
 });
 
 // Update product validation schema
@@ -29,6 +29,6 @@ export const updateProductSchema = z.object({
   taxRate: z.number().min(0).max(100).optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   imageUrl: z.string().nullable().optional(),
-  salesChannels: z.array(z.string()).optional(),
+  salesChannels: z.union([z.array(z.string()), z.array(z.any())]).optional(),
 });
 

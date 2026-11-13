@@ -277,14 +277,19 @@ export const createPurchase = async (data: {
     },
   });
 
-  // If status is RECEIVED upon creation, increment stock of each item in inventory
+  // If status is RECEIVED upon creation, increment stock of each item in inventory and sync landed unit cost
   if (status === "RECEIVED") {
+    const totalPOQty = resolvedItems.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+    const allocatedPerUnit = totalPOQty > 0 ? (Number(additionalCharges) || 0) / totalPOQty : 0;
+
     for (const item of resolvedItems) {
       if (item.productId && item.quantity) {
+        const landedUnitCost = Number((Number(item.unitCost) + allocatedPerUnit).toFixed(2));
         await prisma.product.updateMany({
           where: { id: Number(item.productId) },
           data: {
             stock: { increment: Number(item.quantity) },
+            ...(landedUnitCost > 0 ? { costPrice: landedUnitCost } : {}),
           },
         });
       }
@@ -401,15 +406,35 @@ export const updatePurchase = async (id: number, data: any) => {
     },
   });
 
-  // If status changed to RECEIVED, increment product inventory stock
+  // If status changed to RECEIVED, increment product inventory stock and sync landed unit cost
   if (existing.status !== "RECEIVED" && data.status === "RECEIVED") {
     const items = (updated.items as any[]) || [];
+    const totalPOQty = items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+    const allocatedPerUnit = totalPOQty > 0 ? (Number(updated.additionalCharges) || 0) / totalPOQty : 0;
+
+    for (const item of items) {
+      if (item.productId && item.quantity) {
+        const landedUnitCost = Number((Number(item.unitCost) + allocatedPerUnit).toFixed(2));
+        await prisma.product.updateMany({
+          where: { id: Number(item.productId) },
+          data: {
+            stock: { increment: Number(item.quantity) },
+            ...(landedUnitCost > 0 ? { costPrice: landedUnitCost } : {}),
+          },
+        });
+      }
+    }
+  }
+
+  // If status changed from RECEIVED to something else (CANCELLED, DRAFT), rollback product inventory stock
+  if (existing.status === "RECEIVED" && data.status && data.status !== "RECEIVED") {
+    const items = (existing.items as any[]) || [];
     for (const item of items) {
       if (item.productId && item.quantity) {
         await prisma.product.updateMany({
           where: { id: Number(item.productId) },
           data: {
-            stock: { increment: Number(item.quantity) },
+            stock: { decrement: Number(item.quantity) },
           },
         });
       }
